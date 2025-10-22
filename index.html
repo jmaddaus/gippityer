@@ -1,0 +1,33 @@
+<!-- @format -->
+
+<!doctype html>
+<html>
+	<head>
+		<meta charset="UTF-8" />
+		<title>Hello World!</title>
+	</head>
+	<body>
+		<h1>💖 Hello World!</h1>
+		<p>Welcome to your Electron application.</p>
+		<script
+			type="module"
+			src="/src/renderer.js"></script>
+
+		<div id="message-container">
+			<!-- Messages will be added here -->
+		</div>
+
+		<script>
+			const messageContainer = document.getElementById('message-container');
+
+			// The 'onHotkey' function was exposed from our preload.js script
+			// It's listening for the 'hotkey-pressed' message from the main process.
+			window.electronAPI.onHotkey((key) => {
+				const newParagraph = document.createElement('p');
+				const timestamp = new Date().toLocaleTimeString();
+				newParagraph.textContent = `✅ Hotkey triggered at ${timestamp}: ${key}`;
+				messageContainer.appendChild(newParagraph);
+			});
+		</script>
+	</body>
+</html>

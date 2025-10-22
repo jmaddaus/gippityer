@@ -1,0 +1,215 @@
+<!-- @format -->
+
+<!doctype html>
+<html>
+	<head>
+		<meta charset="UTF-8" />
+		<title>Capture Screen</title>
+		<style>
+			html,
+			body {
+				margin: 0;
+				padding: 0;
+				overflow: hidden; /* Prevent scrollbars */
+			}
+			/* Style the canvas to cover the entire screen */
+			#capture-canvas {
+				position: absolute;
+				top: 0;
+				left: 0;
+				cursor: crosshair;
+			}
+		</style>
+	</head>
+	<body>
+		<canvas id="capture-canvas"></canvas>
+
+		<script>
+			// Get the canvas element and its 2D rendering context
+			const canvas = document.getElementById('capture-canvas');
+			const ctx = canvas.getContext('2d');
+
+			// --- State Variables ---
+			let isDrawing = false;
+			let startX, startY; // Starting coordinates of the selection
+			let endX, endY; // Current end coordinates of the selection
+
+			// --- Animation Variables ---
+			let animationFrame = 0;
+			const animationSpeed = 0.01; // Adjust for faster/slower strobe
+			const borderWidth = 3; // Thickness of the strobing border
+			const cornerRadius = 15; // Radius for the rounded corners
+
+			// --- Setup ---
+			function setupCanvas() {
+				// Set the canvas dimensions to fill the entire window
+				canvas.width = window.innerWidth;
+				canvas.height = window.innerHeight;
+				draw(); // Initial draw of the overlay and help text
+			}
+
+			// --- Drawing Logic ---
+			function draw() {
+				// 1. Clear everything from the previous frame
+				ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+				// 2. Fill the entire canvas with a semi-transparent dark overlay
+				ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+				// 3. If we are currently drawing a selection box...
+				if (isDrawing) {
+					const minX = Math.min(startX, endX);
+					const minY = Math.min(startY, endY);
+					const rectWidth = Math.abs(endX - startX);
+					const rectHeight = Math.abs(endY - startY);
+
+					// Create a rounded rectangle path
+					ctx.beginPath();
+					ctx.moveTo(minX + cornerRadius, minY);
+					ctx.lineTo(minX + rectWidth - cornerRadius, minY);
+					ctx.arcTo(
+						minX + rectWidth,
+						minY,
+						minX + rectWidth,
+						minY + cornerRadius,
+						cornerRadius
+					);
+					ctx.lineTo(minX + rectWidth, minY + rectHeight - cornerRadius);
+					ctx.arcTo(
+						minX + rectWidth,
+						minY + rectHeight,
+						minX + rectWidth - cornerRadius,
+						minY + rectHeight,
+						cornerRadius
+					);
+					ctx.lineTo(minX + cornerRadius, minY + rectHeight);
+					ctx.arcTo(
+						minX,
+						minY + rectHeight,
+						minX,
+						minY + rectHeight - cornerRadius,
+						cornerRadius
+					);
+					ctx.lineTo(minX, minY + cornerRadius);
+					ctx.arcTo(minX, minY, minX + cornerRadius, minY, cornerRadius);
+					ctx.closePath();
+
+					// Punch a hole in the overlay by clearing the rounded rectangle area
+					// We need to save the state, clip, clear, and then restore
+					ctx.save();
+					ctx.clip(); // Use the path as a clipping mask
+					ctx.clearRect(0, 0, canvas.width, canvas.height);
+					ctx.restore();
+
+					// --- NEW: Conic Gradient Border Effect ---
+					ctx.lineWidth = borderWidth;
+					const centerX = minX + rectWidth / 2;
+					const centerY = minY + rectHeight / 2;
+
+					const angleOffset =
+						(animationFrame * animationSpeed * Math.PI * 2) % (Math.PI * 2);
+
+					const gradient = ctx.createConicGradient(
+						angleOffset,
+						centerX,
+						centerY
+					);
+					gradient.addColorStop(0, 'yellow');
+					gradient.addColorStop(0.5, 'purple');
+					gradient.addColorStop(1, 'yellow');
+
+					ctx.strokeStyle = gradient;
+					ctx.stroke(); // Stroke the existing path
+				} else {
+					// If not drawing, show the help text
+					ctx.fillStyle = 'white';
+					ctx.font = '24px sans-serif';
+					ctx.textAlign = 'center';
+					ctx.textBaseline = 'middle';
+					ctx.shadowColor = 'rgba(0,0,0,0.5)';
+					ctx.shadowBlur = 5;
+					ctx.fillText(
+						'Draw a selection on the screen',
+						canvas.width / 2,
+						canvas.height / 2 - 20
+					);
+					ctx.font = '16px sans-serif';
+					ctx.fillText(
+						'Press Esc to cancel',
+						canvas.width / 2,
+						canvas.height / 2 + 20
+					);
+					ctx.shadowColor = 'transparent';
+				}
+			}
+
+			// --- Shared function to finalize selection ---
+			function finalizeSelection(event) {
+				if (!isDrawing) return; // Prevent multiple triggers
+				isDrawing = false;
+
+				const minX = Math.min(startX, endX);
+				const minY = Math.min(startY, endY);
+				const selectionWidth = Math.abs(endX - startX);
+				const selectionHeight = Math.abs(endY - startY);
+
+				if (selectionWidth > 10 && selectionHeight > 10) {
+					window.electronAPI.handle('capture-screen', {
+						rect: {
+							x: minX,
+							y: minY,
+							width: selectionWidth,
+							height: selectionHeight,
+						},
+						cursor: { x: event.clientX, y: event.clientY },
+					});
+				} else {
+					window.electronAPI.send('close-capture-window');
+				}
+			}
+
+			// --- Event Listeners ---
+			canvas.addEventListener('mousedown', (e) => {
+				isDrawing = true;
+				startX = e.clientX;
+				startY = e.clientY;
+				endX = startX;
+				endY = startY;
+				animationLoop();
+			});
+
+			canvas.addEventListener('mousemove', (e) => {
+				if (isDrawing) {
+					endX = e.clientX;
+					endY = e.clientY;
+				}
+			});
+
+			canvas.addEventListener('mouseup', finalizeSelection);
+
+			// NEW: Add mouseleave event listener
+			canvas.addEventListener('mouseleave', finalizeSelection);
+
+			window.addEventListener('keydown', (e) => {
+				if (e.key === 'Escape') {
+					window.electronAPI.send('close-capture-window');
+				}
+			});
+
+			function animationLoop() {
+				if (isDrawing) {
+					animationFrame++;
+					draw();
+					requestAnimationFrame(animationLoop);
+				} else {
+					draw(); // Draw one last time to remove border
+				}
+			}
+
+			// --- Initialization ---
+			window.onload = setupCanvas;
+			window.onresize = setupCanvas;
+		</script>
+	</body>
+</html>

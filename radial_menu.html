@@ -1,0 +1,194 @@
+<!-- @format -->
+
+<!doctype html>
+<html>
+	<head>
+		<meta charset="UTF-8" />
+		<title>Radial Menu</title>
+		<style>
+			html,
+			body {
+				margin: 0;
+				padding: 0;
+				overflow: hidden;
+				background-color: transparent; /* Make the window background see-through */
+			}
+			.hidden {
+				display: none !important;
+			}
+			/* --- Radial Menu Styles --- */
+			#radial-menu {
+				position: absolute;
+				left: 50%;
+				top: 50%;
+				transform: translate(-50%, -50%);
+				width: 1px;
+				height: 1px;
+				transform-style: preserve-3d;
+			}
+			.menu-item {
+				position: absolute;
+				width: 60px; /* Slightly larger buttons */
+				height: 60px;
+				/* Glassmorphism Effect */
+				background-color: rgba(30, 30, 30, 0.5);
+				backdrop-filter: blur(12px) saturate(180%);
+				-webkit-backdrop-filter: blur(12px) saturate(180%);
+				border: 1px solid rgba(255, 255, 255, 0.125);
+				border-radius: 18px; /* More rounded corners */
+
+				color: white;
+				display: flex;
+				justify-content: center;
+				align-items: center;
+				cursor: pointer;
+
+				/* Smoother, bouncier pop-out animation */
+				transition:
+					transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+					background-image 0.25s ease-in-out,
+					box-shadow 0.25s ease-in-out;
+
+				transform: translate(-50%, -50%) scale(0.5);
+				opacity: 0;
+			}
+			.menu-item:hover {
+				box-shadow: 0 0 20px 5px rgba(128, 0, 128, 0.5);
+				transform: translate(-50%, -50%) scale(1.1);
+			}
+			.menu-item:hover .tooltip {
+				opacity: 1;
+				transform: translateY(-45px); /* Move tooltip up on hover */
+			}
+			.menu-item svg {
+				width: 28px;
+				height: 28px;
+				filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
+			}
+			.tooltip {
+				position: absolute;
+				top: 0;
+				background-color: rgba(20, 20, 20, 0.9);
+				color: #eee;
+				padding: 4px 8px;
+				border-radius: 6px;
+				font-size: 12px;
+				font-family: sans-serif;
+				white-space: nowrap;
+				opacity: 0;
+				transition:
+					opacity 0.15s ease-out,
+					transform 0.15s ease-out;
+				pointer-events: none; /* Allows clicks to pass through */
+				transform: translateY(-35px);
+			}
+			.gradient-animate {
+				background-size: 200% 200%;
+				animation: gradient-animation 2s linear infinite;
+				background-image: linear-gradient(
+					135deg,
+					rgba(255, 255, 0, 0.7),
+					rgba(128, 0, 128, 0.7),
+					rgba(255, 255, 0, 0.7)
+				);
+			}
+			@keyframes gradient-animation {
+				0% {
+					background-position: 0% 50%;
+				}
+				50% {
+					background-position: 100% 50%;
+				}
+				100% {
+					background-position: 0% 50%;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div id="radial-menu"></div>
+
+		<script>
+			const radialMenu = document.getElementById('radial-menu');
+
+			const menuItems = [
+				{
+					id: 'solve',
+					title: 'Solve',
+					svg: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" /></svg>`,
+				},
+				{
+					id: 'copy',
+					title: 'Generate Similar',
+					svg: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" /></svg>`,
+				},
+				{
+					id: 'explain',
+					title: 'Explain',
+					svg: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18.375a6 6 0 0 0 6-6c0-3.314-2.686-6-6-6s-6 2.686-6 6c0 3.314 2.686 6 6 6Zm-4.125-2.625a.75.75 0 0 0-1.063.224l-1.42 2.367a.75.75 0 0 0 .663 1.135h11.9a.75.75 0 0 0 .663-1.135l-1.42-2.367a.75.75 0 0 0-1.063-.224l-2.138 1.125-2.076-2.625-2.31 2.31Z" /></svg>`,
+				},
+				{
+					id: 'resources',
+					title: 'Resources',
+					svg: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>`,
+				},
+				{
+					id: 'shopping',
+					title: 'Shopping',
+					svg: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c.51 0 .962-.328 1.093-.828l2.91-6.836a.75.75 0 0 0-.133-.882l-2.014-2.237a.75.75 0 0 0-1.093.023L8.34 8.752M7.5 14.25h11.218c.51 0 .962-.328 1.093-.828l2.91-6.836a.75.75 0 0 0-.133-.882l-2.014-2.237a.75.75 0 0 0-1.093.023L8.34 8.752m-1.5-6.75h.008v.008H6.84V2.25Z" /></svg>`,
+				},
+			];
+
+			function onMenuItemClick(action) {
+				console.log(`Action selected: ${action}`);
+				// MODIFIED: Send the selected action to the main process
+				window.electronAPI.send('radial-menu-action', action);
+			}
+
+			function createMenu() {
+				radialMenu.innerHTML = '';
+				const radius = 90; // Distance of icons from the center
+				const angleStep = (2 * Math.PI) / menuItems.length;
+
+				menuItems.forEach((item, index) => {
+					const angle = index * angleStep - Math.PI / 2; // Start from the top
+
+					const btn = document.createElement('button');
+					btn.className = 'menu-item';
+					btn.title = item.title;
+					btn.innerHTML = `<span class="tooltip">${item.title}</span>${item.svg}`;
+					btn.onclick = () => onMenuItemClick(item.id);
+
+					// --- Animated Gradient on Hover ---
+					btn.addEventListener('mouseenter', () =>
+						btn.classList.add('gradient-animate')
+					);
+					btn.addEventListener('mouseleave', () =>
+						btn.classList.remove('gradient-animate')
+					);
+
+					radialMenu.appendChild(btn);
+
+					setTimeout(
+						() => {
+							const btnX = radius * Math.cos(angle);
+							const btnY = radius * Math.sin(angle);
+							btn.style.opacity = '1';
+							btn.style.transform = `translate(-50%, -50%) translate(${btnX}px, ${btnY}px) scale(1)`;
+						},
+						10 + index * 20
+					); // Stagger the animation
+				});
+			}
+
+			window.onload = createMenu;
+
+			// --- ADDED: Listen for the Escape key to close the menu ---
+			window.addEventListener('keydown', (e) => {
+				if (e.key === 'Escape') {
+					window.electronAPI.send('close-radial-menu');
+				}
+			});
+		</script>
+	</body>
+</html>
